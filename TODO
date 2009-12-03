@@ -1,0 +1,5 @@
+* 携帯端末の場合にJavaScript挿入ではなく、下記サイトのような処理をおこなう
+   - http://www.ianlewis.org/jp/google-analytics
+   - http://ke-tai.org/blog/2009/01/16/selenga4k/
+* 設定値のチェック
+* 文字列置換処理の改善

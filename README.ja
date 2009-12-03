@@ -1,0 +1,85 @@
+================================================================================
+                      _ 
+  _ __ ___   ___   __| |
+ | '_ ` _ \ / _ \ / _` |
+ | | | | | | (_) | (_| |
+ |_| |_| |_|\___/ \__,_|
+                          _                          _       _   _          
+   __ _  ___   ___   __ _| | ___    __ _ _ __   __ _| |_   _| |_(_) ___ ___ 
+  / _` |/ _ \ / _ \ / _` | |/ _ \  / _` | '_ \ / _` | | | | | __| |/ __/ __|
+ | (_| | (_) | (_) | (_| | |  __/ | (_| | | | | (_| | | |_| | |_| | (__\__ \
+  \__, |\___/ \___/ \__, |_|\___|  \__,_|_| |_|\__,_|_|\__, |\__|_|\___|___/
+  |___/             |___/                              |___/ 
+ 
+================================================================================
+                          http://trac.codecheck.in/share/wiki/ModGoogleAnalytics
+
+* これは何？
+  GoogleAnalyticsのタグを自動的にHTMLに挿入するApacheフィルタモジュールです。
+
+* 動作環境
+  Apache 2.2
+
+* インストール方法
+  makeコマンドによりソースコンパイルとインストールを行います。
+
+  Makefileの下記を環境に応じて変更すればコンパイルできるでしょう。
+  ----------
+  basedir=/usr/share/apache2
+  ----------
+
+  コンパイル、インストールを下記コマンドで行います。
+  
+  su
+  make install
+  
+  または
+  
+  sudo make install
+
+* 設定方法
+  httpd.conf に下記設定を追加します。
+  ----------
+  LoadModule google_analytics_module modules/mod_google_analytics.so
+
+  AddOutputFilterByType GOOGLE_ANALYTICS text/html
+  GoogleAnalyticsAccountNumber UA-1234567-8
+  ----------
+
+  "GoogleAnalyticsAccountNumber"は、GoogleAnalyticsのアカウント番号です。
+
+  AddOutputFilterByTypeなどのフィルタ指定ディレクティブでON/OFFを指定するので、
+  <Location/> <Directory/> などに適用することができます。
+
+  なお、HTML中にすでにGoogleAnalyticsタグが存在しているっぽい場合は、挿入しません。
+  
+* パフォーマンス
+  未使用の場合にくらべ約80%程のパフォーマンスになります。
+  
+  下記URLにある mod_ext_filter + sed で同様の機能を実現する場合よりも、
+  約7倍以上高速に動作しました。
+
+  [Google Analytics 用のトラッキングコードを Apache に自動挿入させる]
+    http://pmakino.jp/tdiary/20051114.html
+
+  [参考ベンチマーク]
+  環境:
+    CPU: Intel(R) Core(TM)2 Duo CPU P8600 @ 2.40GHz / Memory: 4GB / OS: Ubuntu 8.10 / Apache: 2.2.9-7ubuntu3
+
+  - ab -n1000
+  |                      | [#/sec] |
+  | none                 | 3145.50 |
+  | mod_ext_filter + sed |  326.63 |
+  | mod_google_analytics | 2443.20 |
+  
+  - ab -c10 -n1000 
+  |                      |            [#/sec] |
+  | none                 |            3270.49 |
+  | mod_ext_filter + sed | (not completed...) |
+  | mod_google_analytics |            2776.35 |
+  ( mod_ext_filter + sed は、sedプロセスが残って終了できませんでした )
+  
+  
+* ライセンス
+  Apache License, Version 2.0
+  http://www.apache.org/licenses/LICENSE-2.0
