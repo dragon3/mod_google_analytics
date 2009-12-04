@@ -46,7 +46,7 @@ limitations under the License.
 #include "apr_strmatch.h"
 #include "apr_strings.h"
 
-#include "mod_google_analytics.h"
+#define VERSION "0.2"
 
 static const char *google_analytics_filter_name = "GOOGLE_ANALYTICS";
 static const char *body_end_tag = "</body>";
@@ -66,22 +66,6 @@ typedef struct {
 typedef struct {
     apr_bucket_brigade *bbsave;
 } google_analytics_filter_ctx;
-
-static int is_mobile(request_rec *r)
-{
-	const char *ua;
-	ua = apr_table_get(r->headers_in, "User-Agent");
-	if (
-		strstr(ua, "DoCoMo")   ||
-		strstr(ua, "KDDI")     ||
-		strstr(ua,"J-PHONE")   ||
-		strstr(ua, "Vodafone") ||
-		strstr(ua, "SoftBank")
-		) {
-		return 1;
-	}
-	return 0;
-}
 
 static apr_status_t google_analytics_out_filter(ap_filter_t *f, apr_bucket_brigade *bb)
 {
@@ -110,7 +94,7 @@ static apr_status_t google_analytics_out_filter(ap_filter_t *f, apr_bucket_briga
 
     apr_bucket_brigade *bbline;
     
-    // do nothing if subrequest.
+    // サブリクエストならなにもしない
     if (r->main) {
         ap_remove_output_filter(f);
         return ap_pass_brigade(f->next, bb);
@@ -123,7 +107,7 @@ static apr_status_t google_analytics_out_filter(ap_filter_t *f, apr_bucket_briga
         ctx->bbsave = apr_brigade_create(r->pool, f->c->bucket_alloc);
     }
 
-    // OK?
+    // length かわってしまうので unset で OK?
     apr_table_unset(r->headers_out, "Content-Length");
     apr_table_unset(r->headers_out, "Content-MD5");
     apr_table_unset(r->headers_out, "Accept-Ranges");
@@ -131,7 +115,7 @@ static apr_status_t google_analytics_out_filter(ap_filter_t *f, apr_bucket_briga
 
     bbline = apr_brigade_create(r->pool, f->c->bucket_alloc);
     
-	// reorganize buckets per line (break|feed).
+    // 改行毎なbucketに編成しなおす
     while ( b != APR_BRIGADE_SENTINEL(bb) ) {
         if ( !APR_BUCKET_IS_METADATA(b) ) {
             if ( apr_bucket_read(b, &buf, &bytes, APR_BLOCK_READ) == APR_SUCCESS ) {
@@ -200,6 +184,7 @@ static apr_status_t google_analytics_out_filter(ap_filter_t *f, apr_bucket_briga
         b = APR_BRIGADE_FIRST(bb);
     }
 
+    // 改行毎なbucketをまわす
     for ( b = APR_BRIGADE_FIRST(bbline);
           b != APR_BRIGADE_SENTINEL(bbline);
           b = APR_BUCKET_NEXT(b) ) {
