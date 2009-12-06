@@ -46,12 +46,12 @@ limitations under the License.
 #include "apr_strmatch.h"
 #include "apr_strings.h"
 
-#define VERSION "0.2"
+#define VERSION "0.2-async"
 
 static const char *google_analytics_filter_name = "GOOGLE_ANALYTICS";
 static const char *body_end_tag = "</body>";
 static const unsigned int body_end_tag_length = 7;
-static const char *replace_base = "<script type=\"text/javascript\"><!-- \n var gaJsHost = ((\"https:\" == document.location.protocol) ? \"https://ssl.\" : \"http://www.\");document.write(unescape(\"%%3Cscript src='\" + gaJsHost + \"google-analytics.com/ga.js' type='text/javascript'%%3E%%3C/script%%3E\"));\n//--></script><script type=\"text/javascript\"><!-- \n try {var pageTracker = _gat._getTracker(\"%s\");pageTracker._trackPageview();} catch(err) {}; \n//--></script></body>";
+static const char *replace_base = "<script type=\"text/javascript\"><!--\n  var _gaq = _gaq || [];\n _gaq.push(['_setAccount', '%s']);\n _gaq.push(['_trackPageview']);\n (function() {\n    var ga = document.createElement('script');\n ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';\n ga.setAttribute('async', 'true');\n document.documentElement.firstChild.appendChild(ga);\n })();\n--></script>\n</head>";
 static const char *tag_exists = "google-analytics\\.com/(ga|urchin)\\.js";
 static const ap_regex_t *regex_tag_exists;
 static const apr_strmatch_pattern *pattern_body_end_tag;
