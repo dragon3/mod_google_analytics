@@ -1,0 +1,5 @@
+mod_google_analytics.la
+mod_google_analytics.lo
+mod_google_analytics.o
+mod_google_analytics.slo
+.libs
