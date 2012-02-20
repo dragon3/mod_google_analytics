@@ -13,6 +13,7 @@ mod_google_analytics.c -- Apache mod_google_analytics module
 
  AddOutputFilterByType GOOGLE_ANALYTICS text/html
  GoogleAnalyticsAccountNumber UA-1234567-8
+ GoogleAnalyticsMobileAccountNumber MO-1234567-8
 
 =head1 AUTHOR
 
@@ -20,7 +21,7 @@ Ryuzo Yamamoto (dragon3)
 
 =head1 LICENSE
 
-Copyright 2008 Ryuzo Yamamoto
+Copyright 2008-2012 Ryuzo Yamamoto
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -46,26 +47,60 @@ limitations under the License.
 #include "apr_strmatch.h"
 #include "apr_strings.h"
 
-#define VERSION "0.2"
+// rand
+#include <stdlib.h>
+
+#define VERSION "0.3"
 
 static const char *google_analytics_filter_name = "GOOGLE_ANALYTICS";
 static const char *body_end_tag = "</body>";
 static const unsigned int body_end_tag_length = 7;
 static const char *replace_base = "<script type=\"text/javascript\"><!-- \n var gaJsHost = ((\"https:\" == document.location.protocol) ? \"https://ssl.\" : \"http://www.\");document.write(unescape(\"%%3Cscript src='\" + gaJsHost + \"google-analytics.com/ga.js' type='text/javascript'%%3E%%3C/script%%3E\"));\n//--></script><script type=\"text/javascript\"><!-- \n try {var pageTracker = _gat._getTracker(\"%s\");pageTracker._trackPageview();} catch(err) {}; \n//--></script></body>";
+static const char *mobile_replace_base = "<img src=\"/ga.php?utmac=%s&amp;utmn=%d&amp;utmr=%s&amp;utmp=%s&amp;guid=ON\" />";
+static const char *mobile_ua_pattern = "DoCoMo|J-PHONE|Vodafone|SoftBank|DDIPOCKET|WILLCOM|emobile|KDDI";
 static const char *tag_exists = "google-analytics\\.com/(ga|urchin)\\.js";
 static const ap_regex_t *regex_tag_exists;
+static const ap_regex_t *regex_ua_mobile;
 static const apr_strmatch_pattern *pattern_body_end_tag;
+
+static int rand_init_done = 0;
 
 module AP_MODULE_DECLARE_DATA google_analytics_module;
 
 typedef struct {
     char *account_number;
     char *replace;
+    char *mobile_account_number;
 } google_analytics_filter_config;
 
 typedef struct {
     apr_bucket_brigade *bbsave;
 } google_analytics_filter_ctx;
+
+static const int is_mobile(request_rec *r)
+{
+    const char *ua = apr_table_get(r->headers_in, "User-Agent");
+    if (ap_regexec(regex_ua_mobile, ua, 0, NULL, 0) == 0) {
+        return 1;
+    }
+    return 0;
+}
+
+static const char * create_mobile_replace_tag(request_rec *r, google_analytics_filter_config *c)
+{
+    if (!rand_init_done) {
+        srand((unsigned)(getpid()));
+        rand_init_done = 1;
+    }
+
+    const char *referer = apr_table_get(r->headers_in, "Referer");
+    // utmn, utmr, utmp = rand, referer, path
+    return apr_psprintf(r->pool, mobile_replace_base,
+                        c->mobile_account_number,
+                        rand(),
+                        ap_escape_uri(r->pool, referer ? referer : "-"),
+                        ap_escape_uri(r->pool, r->uri));
+}
 
 static apr_status_t google_analytics_out_filter(ap_filter_t *f, apr_bucket_brigade *bb)
 {
@@ -93,6 +128,8 @@ static apr_status_t google_analytics_out_filter(ap_filter_t *f, apr_bucket_briga
     apr_status_t rv;
 
     apr_bucket_brigade *bbline;
+
+    const char * mobile_replace_tag;
     
     // サブリクエストならなにもしない
     if (r->main) {
@@ -122,8 +159,8 @@ static apr_status_t google_analytics_out_filter(ap_filter_t *f, apr_bucket_briga
                 if ( bytes == 0 ) {
                     APR_BUCKET_REMOVE(b);
                 } else {
-					while ( bytes > 0 ) {
-						le_n = memchr(buf, '\n', bytes);
+                    while ( bytes > 0 ) {
+                        le_n = memchr(buf, '\n', bytes);
                         le_r = memchr(buf, '\r', bytes);
                         if ( le_n != NULL ) {
                             if ( le_n == le_r + sizeof(char)) {
@@ -163,7 +200,7 @@ static apr_status_t google_analytics_out_filter(ap_filter_t *f, apr_bucket_briga
                             bytes = 0;
                         }
                     } /* while bytes > 0 */
-				}
+                }
             } else {
                 APR_BUCKET_REMOVE(b);
             }
@@ -193,10 +230,10 @@ static apr_status_t google_analytics_out_filter(ap_filter_t *f, apr_bucket_briga
 
             bufp = buf;
 
-			if (ap_regexec(regex_tag_exists, bufp, 0, NULL, 0) == 0) {
-				break;
-			}
-			
+            if (ap_regexec(regex_tag_exists, bufp, 0, NULL, 0) == 0) {
+                break;
+            }
+
             subs = apr_strmatch(pattern_body_end_tag, bufp, bytes);
             if (subs != NULL) {
                 match = ((unsigned int)subs - (unsigned int)bufp) / sizeof(char);
@@ -209,8 +246,14 @@ static apr_status_t google_analytics_out_filter(ap_filter_t *f, apr_bucket_briga
                 apr_bucket_delete(b1);
                 bytes -= body_end_tag_length;
                 bufp += body_end_tag_length;
-                b1 = apr_bucket_immortal_create(c->replace, strlen(c->replace),
-                                                r->connection->bucket_alloc);
+                if (is_mobile(r) == 1 && c->mobile_account_number) {
+                    mobile_replace_tag = create_mobile_replace_tag(r, c);
+                    b1 = apr_bucket_immortal_create(mobile_replace_tag, strlen(mobile_replace_tag),
+                                                    r->connection->bucket_alloc);
+                } else {
+                    b1 = apr_bucket_immortal_create(c->replace, strlen(c->replace),
+                                                    r->connection->bucket_alloc);
+                }
                 APR_BUCKET_INSERT_BEFORE(b, b1);
             }
         }
@@ -240,6 +283,10 @@ static void * merge_dir_config(apr_pool_t *p, void *basev, void *overridesv)
 
     c->account_number = overrides->account_number ? overrides->account_number : base->account_number;
     c->replace = overrides->replace ? overrides->replace : base->replace;
+
+    // mobile
+    c->mobile_account_number = overrides->mobile_account_number ? overrides->mobile_account_number : base->mobile_account_number;
+
     return c;
 }
 
@@ -247,28 +294,43 @@ static const char * set_account_number(cmd_parms *cmd, void *mconfig, const char
 {
     google_analytics_filter_config *c = (google_analytics_filter_config *)mconfig;
     
-    // TODO check arg
-    // return "specify your account number.";
-    
     c->account_number = apr_pstrdup(cmd->pool, arg);
     c->replace = apr_psprintf(cmd->pool, replace_base, c->account_number);
     
     return NULL;
 }
 
-static int google_analytics_post_config(apr_pool_t *p, apr_pool_t *plog,
-										apr_pool_t *ptemp, server_rec *s)
+static const char * set_mobile_account_number(cmd_parms *cmd, void *mconfig, const char *arg)
 {
-	regex_tag_exists = ap_pregcomp(p, tag_exists, (AP_REG_EXTENDED | AP_REG_ICASE | AP_REG_NOSUB));
-	ap_assert(regex_tag_exists != NULL);
+    google_analytics_filter_config *c = (google_analytics_filter_config *)mconfig;
 
-	pattern_body_end_tag = apr_strmatch_precompile(p, body_end_tag, 0);
-	return OK;
+    c->mobile_account_number = apr_pstrdup(cmd->pool, arg);
+
+    return NULL;
+}
+
+static int google_analytics_post_config(apr_pool_t *p, apr_pool_t *plog,
+                                        apr_pool_t *ptemp, server_rec *s)
+{
+    // gaタグ存在するかどうかの検索 regex
+    regex_tag_exists = ap_pregcomp(p, tag_exists, (AP_REG_EXTENDED | AP_REG_ICASE | AP_REG_NOSUB));
+    ap_assert(regex_tag_exists != NULL);
+
+    // </body>タグの検索 regex
+    pattern_body_end_tag = apr_strmatch_precompile(p, body_end_tag, 0);
+
+    // 携帯端末 User-Agent 判定のための regex
+    regex_ua_mobile = ap_pregcomp(p, mobile_ua_pattern, (AP_REG_EXTENDED | AP_REG_ICASE | AP_REG_NOSUB));
+    ap_assert(regex_ua_mobile != NULL);
+
+    return OK;
 }
 
 static const command_rec cmds[] = {
     AP_INIT_TAKE1("GoogleAnalyticsAccountNumber", set_account_number, NULL, OR_FILEINFO,
                   "Set the Google Analytics account number."),
+    AP_INIT_TAKE1("GoogleAnalyticsMobileAccountNumber", set_mobile_account_number, NULL, OR_FILEINFO,
+                  "Set the Google Analytics account number for mobile tracking."),
     {NULL}
 };
   
