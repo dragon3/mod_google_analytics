@@ -3,3 +3,5 @@ mod_google_analytics.lo
 mod_google_analytics.o
 mod_google_analytics.slo
 .libs
+test/src
+test/httpd
