@@ -12,7 +12,7 @@
   |___/             |___/                              |___/ 
  
 ================================================================================
-                          http://trac.codecheck.in/share/wiki/ModGoogleAnalytics
+                                 https://github.com/dragon3/mod_google_analytics
 
 * これは何？
   GoogleAnalyticsのタグを自動的にHTMLに挿入するApacheフィルタモジュールです。
