@@ -52,6 +52,26 @@
   <Location/> <Directory/> などに適用することができます。
 
   なお、HTML中にすでにGoogleAnalyticsタグが存在しているっぽい場合は、挿入しません。
+
+* 日本の携帯端末向けトラッキングをおこなう場合の設定方法
+  上記設定に加えて、携帯端末トラッキング用のアカウント番号を設定します。
+  ----------
+  GoogleAnalyticsMobileAccountNumber MO-1234567-8
+  ----------
+  さらに、GoogleAnalytics で配布されている ga.php をドキュメントルートに設置します。
+  ( ga.php が動作するためのPHP実行環境設定も必要です )
+
+  [ 参考サイト ]
+  モバイル向け Google Analytics がすべてのアカウントでご利用可能になりました
+  http://analytics-ja.blogspot.com/2010/02/expanded-mobile-reporting.html
+
+  GoogleAnalyticsMobileAccountNumber が設定されていて、
+  User-Agent から携帯端末と判定した場合は、JavaScript トラッキングタグのかわりに、
+  下記のような img タグを挿入します。
+
+  ----------
+  <img src="/ga.php?utmac=MO-1234567-8&amp;utmn=[ランダム数値]&amp;utmr=[Referer]&amp;utmp=[リクエストパス]&amp;guid=ON" />
+  ----------
   
 * パフォーマンス
   未使用の場合にくらべ約80%程のパフォーマンスになります。
