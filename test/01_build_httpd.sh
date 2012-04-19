@@ -1,5 +1,5 @@
 #!/bin/bash
-basedir=$(cd $(dirname $(readlink -e $0));pwd)
+basedir=$(cd $(dirname $0);pwd)
 
 rm -rf src httpd
 mkdir -p src
