@@ -42,5 +42,5 @@ sub test_mobile {
 
     ok $res->is_success;
     like $res->content,
-qr/<img src="\/ga\.php\?utmac=$account_number&amp;utmn=[0-9]+&amp;utmr=-&amp;utmp=$path&amp;guid=ON/;
+qr/<img src="\/ga\.php\?utmac=$account_number&amp;utmn=[0-9]+&amp;utmr=-&amp;utmp=$path&amp;guid=ON" \/><\/body>/;
 }

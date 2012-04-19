@@ -56,7 +56,7 @@ static const char *google_analytics_filter_name = "GOOGLE_ANALYTICS";
 static const char *body_end_tag = "</body>";
 static const unsigned int body_end_tag_length = 7;
 static const char *replace_base = "<script type=\"text/javascript\"><!-- \n var gaJsHost = ((\"https:\" == document.location.protocol) ? \"https://ssl.\" : \"http://www.\");document.write(unescape(\"%%3Cscript src='\" + gaJsHost + \"google-analytics.com/ga.js' type='text/javascript'%%3E%%3C/script%%3E\"));\n//--></script><script type=\"text/javascript\"><!-- \n try {var pageTracker = _gat._getTracker(\"%s\");pageTracker._trackPageview();} catch(err) {}; \n//--></script></body>";
-static const char *mobile_replace_base = "<img src=\"/ga.php?utmac=%s&amp;utmn=%d&amp;utmr=%s&amp;utmp=%s&amp;guid=ON\" />";
+static const char *mobile_replace_base = "<img src=\"/ga.php?utmac=%s&amp;utmn=%d&amp;utmr=%s&amp;utmp=%s&amp;guid=ON\" /></body>";
 static const char *mobile_ua_pattern = "DoCoMo|J-PHONE|Vodafone|SoftBank|DDIPOCKET|WILLCOM|emobile|KDDI";
 static const char *tag_exists = "google-analytics\\.com/(ga|urchin)\\.js";
 static const ap_regex_t *regex_tag_exists;
